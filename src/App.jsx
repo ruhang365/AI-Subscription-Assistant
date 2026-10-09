@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import ClaudeRefundTool from './claude-refund/ClaudeRefundTool.jsx';
+import { GUIDE_PATH, isClaudePlatform } from './claude-refund/refund.js';
 
 // --- 图标组件定义 (Inline SVGs) ---
 const IconBase = ({ children, className = "", size = 24, ...props }) => (
@@ -38,7 +40,7 @@ const ExternalLink = (props) => <IconBase {...props}><path d="M18 13v6a2 2 0 0 1
 const Wand2 = (props) => <IconBase {...props}><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z" /><path d="m14 7 3 3" /><path d="M5 6v4" /><path d="M19 14v4" /><path d="M10 2v2" /><path d="M7 8H3" /><path d="M21 16h-4" /><path d="M11 3H9" /></IconBase>;
 const Loader2 = (props) => <IconBase {...props} className={`${props.className || ""} animate-spin`}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></IconBase>;
 
-const Github = (props) => <IconBase {...props}><path d="M15 22v-4a4.8 4.8 0 0 0-1-5c3-4 4-5 6-9 0-2 0-3-1.5-5 .5-1.5 0-3-2-3-3 1.5-5 2.5-5 2.5-1.5 0-3 0-5-2.5-2-3-.5-1.5-2-3-2-3 0 2 0 3 1.5 5 2 4 1 5 6 9-1 1-1 3-1 5v4" /></IconBase>;
+const Github = (props) => <IconBase {...props}><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 19 4.77 5.07 5.07 0 0 0 18.91 1S17.73.65 15 2.48a13.38 13.38 0 0 0-7 0C5.27.65 4.09 1 4.09 1A5.07 5.07 0 0 0 4 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 6.97A3.37 3.37 0 0 0 8 18.13V22" /></IconBase>;
 
 // --- 核心配置 ---
 const BRAND_CONFIG = {
@@ -296,6 +298,12 @@ const IntroView = ({ setStep }) => (
         立即开始诊断
         <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
       </button>
+      <a href={GUIDE_PATH} className="relative mx-auto mt-6 flex max-w-xl items-center gap-4 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-left shadow-sm transition-colors hover:bg-blue-100">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-700 font-bold text-white" aria-hidden="true">C</span>
+        <span><span className="block text-base font-bold text-gray-900">Claude Code 被封号，怎么申请退款？</span>
+          <span className="mt-1 block text-sm text-gray-600">官方入口、分步指引，还有煜哥的实际退款经历</span></span>
+        <ArrowRight className="ml-auto shrink-0 text-blue-700" size={20} />
+      </a>
     </div>
 
     {/* Bento Grid Features */}
@@ -386,6 +394,12 @@ const TemplateSelectView = ({ setStep, formData, setFormData, handleSmartFill, i
     <div className="mb-8">
       <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">🔥 热门平台直通车</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <a href={GUIDE_PATH} className="group flex items-center gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm transition-all hover:border-blue-400 hover:shadow-md">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-700 text-lg font-bold text-white" aria-hidden="true">C</span>
+          <span><span className="block font-bold text-gray-900">Claude / Claude Code 退款专区</span>
+            <span className="mt-1 block text-xs leading-5 text-gray-600">被封号、登录不了？按付款渠道找到申请入口</span></span>
+          <ArrowRight className="ml-auto shrink-0 text-blue-600" size={20} />
+        </a>
         <div 
           onClick={() => {
             setFormData(prev => ({ 
@@ -836,7 +850,8 @@ const App = () => {
     
     if (name === 'platform') {
       const lowerVal = value.toLowerCase();
-      if (lowerVal.includes('chatgpt') || lowerVal.includes('openai')) setFormData(prev => ({ ...prev, platformType: 'openai' }));
+      if (isClaudePlatform(value)) setFormData(prev => ({ ...prev, platformType: 'claude' }));
+      else if (lowerVal.includes('chatgpt') || lowerVal.includes('openai')) setFormData(prev => ({ ...prev, platformType: 'openai' }));
       else if (lowerVal.includes('midjourney') || lowerVal.includes('mj')) setFormData(prev => ({ ...prev, platformType: 'midjourney' }));
       else if (lowerVal.includes('apple') || lowerVal.includes('store')) setFormData(prev => ({ ...prev, platformType: 'apple' }));
       else if (lowerVal.includes('google')) setFormData(prev => ({ ...prev, platformType: 'google' }));
@@ -848,6 +863,12 @@ const App = () => {
   // --- AI Feature 1: Smart Fill ---
   const handleSmartFill = async () => {
     if (!formData.userStory.trim()) return;
+    // Claude 专区可直接进入本地指引，原文只留在当前页面。
+    if (isClaudePlatform(formData.userStory)) {
+      setFormData(prev => ({ ...prev, platform: 'Claude / Claude Code', platformType: 'claude', scenario: 'other' }));
+      setStep(2);
+      return;
+    }
     setIsAiAnalyzing(true);
 
     const systemPrompt = `You are a Refund Expert. Extract data from the user's story into JSON.
@@ -885,7 +906,8 @@ const App = () => {
       // Auto determine platform type
       let pType = 'other';
       const lowerPlat = (result.platform || '').toLowerCase();
-      if (lowerPlat.includes('chatgpt') || lowerPlat.includes('openai')) pType = 'openai';
+      if (isClaudePlatform(result.platform)) pType = 'claude';
+      else if (lowerPlat.includes('chatgpt') || lowerPlat.includes('openai')) pType = 'openai';
       else if (lowerPlat.includes('midjourney') || lowerPlat.includes('mj')) pType = 'midjourney';
       else if (lowerPlat.includes('apple')) pType = 'apple';
       else if (lowerPlat.includes('google')) pType = 'google';
@@ -893,7 +915,7 @@ const App = () => {
       setFormData(prev => ({ ...prev, platformType: pType }));
 
       // If we successfully got a scenario, move to step 2 (Details) directly, skipping manual selection
-      if (result.scenario) {
+      if (pType === 'claude' || result.scenario) {
         setStep(2);
       }
     } catch (e) {
@@ -958,7 +980,15 @@ const App = () => {
             handleScenarioSelect={handleScenarioSelect}
           />
         )}
-        {step === 2 && (
+        {step >= 2 && formData.platformType === 'claude' && (
+          <div className="mx-auto max-w-5xl px-6 pb-20 pt-24 animate-fade-in">
+            <ClaudeRefundTool embedded seed={formData} onBack={() => {
+              setFormData(prev => ({ ...prev, platform: '', platformType: 'other' }));
+              setStep(2);
+            }} />
+          </div>
+        )}
+        {step === 2 && formData.platformType !== 'claude' && (
           <DetailsFormView 
             setStep={setStep} 
             formData={formData} 
@@ -966,8 +996,8 @@ const App = () => {
             handleInputChange={handleInputChange} 
           />
         )}
-        {step === 3 && <AnalyzingView />}
-        {step === 4 && (
+        {step === 3 && formData.platformType !== 'claude' && <AnalyzingView />}
+        {step === 4 && formData.platformType !== 'claude' && (
           <ResultView 
             setStep={setStep} 
             formData={formData} 
