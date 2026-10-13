@@ -84,27 +84,27 @@ const KNOWLEDGE_BASE = {
   platforms: {
     'openai': {
       name: 'OpenAI (ChatGPT)',
-      policy: 'OpenAI 政策较严，但对欧盟/英国用户有14天冷静期。对于"技术故障"或"误操作"且未使用的申诉成功率较高。',
-      refundUrl: 'https://help.openai.com/en/articles/7232916-how-do-i-cancel-my-subscription'
+      policy: '先核对购买渠道，再查看 OpenAI 官方退款说明。申请时如实提供扣费和使用情况。',
+      refundUrl: 'https://help.openai.com/en/articles/7232895-how-do-i-request-a-refund-for-my-chatgpt-subscription'
     },
     'midjourney': {
       name: 'Midjourney',
-      policy: 'Midjourney 有著名的"零使用退款"政策：如果续费后 GPU 分钟数使用量为 0，通常可自动或人工全额退款。',
+      policy: '在 Midjourney 账户页查看订阅和退款选项；是否符合条件以官方审核为准。',
       refundUrl: 'https://www.midjourney.com/account'
     },
     'apple': {
       name: 'Apple App Store',
-      policy: 'Apple 掌握最终裁量权。对于"儿童误操作"或"应用无法使用"的理由，通过 reportaproblem.apple.com 申诉成功率极高。',
+      policy: '通过 Apple 购买的订单，前往 Apple 报告问题页，选择与你实际情况相符的退款原因。',
       refundUrl: 'https://reportaproblem.apple.com/'
     },
     'google': {
       name: 'Google Play',
-      policy: '48小时内通过 Google Play 订单记录申请是黄金窗口期。超过48小时则需直接联系开发者，难度增加。',
+      policy: '通过 Google Play 购买的订单，按官方退款流程查看对应时间和地区的申请方式。',
       refundUrl: 'https://support.google.com/googleplay/workflow/9813244'
     },
     'lovart': {
       name: 'Lovart',
-      policy: 'Lovart 退费需通过邮件进行，且流程较为特殊。通常需要两轮邮件交互，并可能需要支付平台介入。',
+      policy: '通过官方支持渠道说明扣费问题，并按客服回复补充材料。处理步骤和结果以实际订单为准。',
       refundUrl: null,
       steps: [
         {
@@ -113,17 +113,17 @@ const KNOWLEDGE_BASE = {
         },
         {
           title: "回复自动邮件",
-          desc: "收到系统自动回复后，必须发送第二封邮件，附上账单截图，再次强调退款诉求。"
+          desc: "收到自动回复后，查看是否要求补充材料；需要时在原邮件中回复脱敏账单和真实诉求。"
         },
         {
-          title: "支付平台介入 (兜底)",
-          desc: "若 12 小时无回复，请立即联系支付平台 (如支付宝 95188) 客服，提交电子表单申诉。"
+          title: "仍未解决时",
+          desc: "保留往来记录，通过原客服渠道跟进；如仍有账单争议，可向实际付款渠道咨询处理方式。"
         }
       ]
     },
     'other': {
       name: '其他平台 (SaaS通用)',
-      policy: '大多数合规 SaaS 遵循 Stripe 的退款建议：如果用户提出"未使用"或"服务未生效"，为避免争议(Chargeback)，商家通常倾向于退款。',
+      policy: '从订单或收据确认实际收款方，查看该平台的退款条款，再通过官方客服说明情况。',
       refundUrl: null
     }
   }
@@ -140,19 +140,20 @@ const REFUND_SCENARIOS = {
     emailSubject: "Refund Request - Accidental Subscription",
     defaultTemplate: (data) => `I am writing to request a refund for a subscription that was purchased by mistake on ${data.date}. 
 
-I realized the error immediately and have not intended to use the premium features. As this was an accidental transaction, I kindly request a cancellation and full reversal of the charge of ${data.amount}.`
+I would like to cancel this subscription and ask you to review whether the charge of ${data.amount} is eligible for a refund.
+Usage since purchase: [Please describe actual usage].`
   },
   'forgot_cancel': {
     id: 'forgot_cancel',
     icon: <Clock className="text-blue-500" />,
     color: "bg-blue-50 border-blue-200 hover:border-blue-400",
-    badge: "成功率高",
+    badge: "核对用量",
     title: '忘记取消续费',
-    description: '试用期结束忘记关自动续费，完全没用过。',
+    description: '忘记关闭自动续费，想核对这次扣费能否退回。',
     emailSubject: "Refund Request - Unwanted Auto-Renewal",
     defaultTemplate: (data) => `My subscription auto-renewed on ${data.date} contrary to my intent. I meant to cancel before the renewal date but missed the window.
 
-Crucially, I have not utilized the service since the renewal occurred (Zero Usage). According to fair usage principles, I request a refund for this unused billing cycle.`
+My usage since renewal: ${data.usageStatus === 'zero' ? 'I have not used the service since renewal.' : data.usageStatus === 'low' ? 'I have used the service a little.' : data.usageStatus === 'high' ? 'I have used the service extensively.' : '[Please describe actual usage].'} Please review whether this charge is eligible for a refund.`
   },
   'technical': {
     id: 'technical',
@@ -176,7 +177,7 @@ As the service described was not delivered effectively, I request a full refund 
     emailSubject: "Refund Request - Service Not As Described",
     defaultTemplate: (data) => `I recently subscribed to your service but found the quality significantly different from what was advertised. Specifically: [${data.issueDetails || "The output quality is poor"}].
 
-Under consumer protection rights regarding products not matching their description, I request a refund.`
+Please review the issue and let me know whether this purchase is eligible for a refund.`
   },
   'other': {
     id: 'other',
@@ -194,34 +195,14 @@ Given these circumstances, I kindly request your team to review my case and proc
 };
 
 // --- Helper Functions for Logic ---
-const calculateSuccessRate = (formData) => {
-  const { scenario, usageStatus, timeSinceCharge, platformType } = formData;
-  let score = 50;
-  if (scenario === 'technical') score += 20; 
-  if (scenario === 'accidental') score += 10;
-  if (scenario === 'dissatisfied') score -= 10; 
-  if (scenario === 'other') score -= 5; 
-
-  if (usageStatus === 'zero') score += 30;
-  else if (usageStatus === 'low') score += 5;
-  else if (usageStatus === 'high') score -= 30;
-
-  if (timeSinceCharge === 'within_24h') score += 10;
-
-  if (platformType === 'apple' && (scenario === 'accidental' || scenario === 'technical')) score += 15; 
-  if (platformType === 'midjourney' && usageStatus === 'zero') score = 98; 
-
-  return Math.min(Math.max(score, 5), 99);
-};
-
 const getStrategicAdvice = (formData) => {
   const { scenario, platformType } = formData;
   let advice = "";
   if (scenario === 'technical') advice = `关键在于"证据"。请务必在申诉中附上报错截图或录屏。`;
-  else if (scenario === 'accidental') advice = `强调"立即性"。误操作后越快发起申请，成功率越高。`;
-  else if (scenario === 'forgot_cancel') advice = `核心策略是证明"无损"。因为没用过，商家没成本，主打"不当得利"逻辑。`;
-  else if (scenario === 'dissatisfied') advice = `主观争议难度较高。需具体化不满之处，避免显得像无理取闹。`;
-  else if (scenario === 'other') advice = `情况较为特殊，建议先礼后兵，详细描述前因后果。`;
+  else if (scenario === 'accidental') advice = `说明误操作发生的时间、扣费金额和实际使用情况，并保留收据。`;
+  else if (scenario === 'forgot_cancel') advice = `说明续费日期和续费后的实际用量；如果想停止后续扣费，还需要单独取消续费。`;
+  else if (scenario === 'dissatisfied') advice = `具体说明实际功能与购买时介绍有哪些差异，并保留相应记录。`;
+  else if (scenario === 'other') advice = `按时间顺序说明发生了什么，以及希望客服核对或处理的事项。`;
   if (platformType === 'apple') advice += ` 注意：Apple 扣费请直接去 Apple 官网申诉，别找 App 开发者。`;
   return advice;
 };
@@ -281,15 +262,15 @@ const IntroView = ({ setStep }) => (
   <div className="pt-32 pb-20 px-6 max-w-5xl mx-auto animate-fade-in">
     {/* Hero Section */}
     <div className="text-center mb-20 relative">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-blue-400/20 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] max-w-full h-[300px] bg-blue-400/20 blur-[120px] rounded-full pointer-events-none" />
       
       <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tight mb-8 leading-tight">
         误扣费？想退款？<br />
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">AI 帮你“反悔”。</span>
       </h1>
       <p className="text-lg text-gray-500 max-w-2xl mx-auto mb-12 leading-relaxed">
-        基于真实案例数据与 LLM 大模型，为您生成胜率最高的申诉策略与律师级文书。
-        不再为误操作或忘记取消买单。
+        找到对应的退款入口，整理扣费情况和申请文案。
+        从确认付款渠道开始，按步骤处理。
       </p>
       <button 
         onClick={() => setStep(1)}
@@ -315,9 +296,9 @@ const IntroView = ({ setStep }) => (
         <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 mb-4">
           <BarChart3 size={20} />
         </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">智能胜率预测</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">核对申请条件</h3>
         <p className="text-sm text-gray-500 leading-relaxed">
-          实时比对 OpenAI, Midjourney, Apple 等平台最新退款条款，不打无准备之仗。
+          按购买平台和付款渠道查看申请入口，核对扣费日期、用量和所需材料。
         </p>
       </div>
 
@@ -330,7 +311,7 @@ const IntroView = ({ setStep }) => (
         </div>
         <h3 className="text-lg font-bold text-gray-900 mb-2">AI 深度润色</h3>
         <p className="text-sm text-gray-500 leading-relaxed">
-          AI 模型根据您的具体遭遇，自动生成符合商务礼仪且引用消费者权益的申诉邮件。
+          先生成申请草稿，也可用 AI 调整表达；发送前请核对每一项事实。
         </p>
       </div>
 
@@ -370,7 +351,7 @@ const TemplateSelectView = ({ setStep, formData, setFormData, handleSmartFill, i
           懒人模式：AI 智能诊断
         </h2>
         <p className="text-sm text-gray-600 mb-4">
-          不想手动填表？直接把你的遭遇（比如扣费短信、大概情况）粘贴在这里，AI 会自动提取信息并帮你选择最佳方案。
+          用几句话描述扣费情况，AI 可帮你整理信息，识别结果需要你核对。使用 AI 识别会将这段描述发送给模型服务，请省略密码、卡号和完整订单信息。
         </p>
         <div className="flex gap-2">
           <textarea 
@@ -479,7 +460,7 @@ const DetailsFormView = ({ setStep, formData, setFormData, handleInputChange }) 
             <span className="w-2 h-6 rounded-full bg-blue-600 block"></span>
             补充案件细节
           </h2>
-          <p className="text-sm text-gray-500 mt-1 pl-4">针对“{scenarioConfig.title}”场景的精准问询</p>
+          <p className="text-sm text-gray-500 mt-1 pl-4">补充“{scenarioConfig.title}”的实际情况</p>
         </div>
 
         <div className="p-8 space-y-6">
@@ -591,7 +572,7 @@ const DetailsFormView = ({ setStep, formData, setFormData, handleInputChange }) 
                     <span className="text-pink-600 text-xs font-bold">!</span>
                   </div>
                   <div className="text-xs text-pink-800 leading-relaxed">
-                    <span className="font-bold">Lovart 退费关键：</span>通常需要两轮邮件。请务必在提交申请后留意自动回复，并准备好<span className="font-bold underline">账单截图</span>用于第二轮回复（如支付宝账单详情页）。
+                    <span className="font-bold">Lovart 退费关键：</span>留意客服回复，按要求补充<span className="font-bold underline">账单截图</span>等材料，发送前遮去无关的支付信息。
                   </div>
                 </div>
               )}
@@ -645,33 +626,21 @@ const AnalyzingView = () => (
          <RefreshCcw size={40} className="text-blue-600 animate-spin" />
       </div>
     </div>
-    <h2 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">AI 顾问正在分析案例...</h2>
+    <h2 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">正在整理申请草稿…</h2>
     <div className="flex flex-col items-center gap-2 text-sm text-gray-500 font-medium">
-      <span className="animate-pulse">Retrieving Policy Data...</span>
-      <span className="animate-pulse delay-100">Calculating Refund Probability...</span>
-      <span className="animate-pulse delay-200">Drafting Legal Email...</span>
+      <span className="animate-pulse">整理你填写的情况</span>
+      <span className="animate-pulse delay-100">汇总申请前需核对的事项</span>
+      <span className="animate-pulse delay-200">准备英文申请草稿</span>
     </div>
   </div>
 );
 
 const ResultView = ({ setStep, formData, aiPolishedEmail, handleEmailPolish, isAiPolishing }) => {
-  const successRate = calculateSuccessRate(formData);
   const scenarioConfig = REFUND_SCENARIOS[formData.scenario];
   const defaultEmailBody = scenarioConfig.defaultTemplate(formData);
   const emailBody = aiPolishedEmail || defaultEmailBody;
   const platformInfo = KNOWLEDGE_BASE.platforms[formData.platformType];
   
-  let colorClass = 'text-rose-600';
-  let gradient = 'from-rose-500 to-orange-500';
-
-  if (successRate > 80) { 
-    colorClass = 'text-emerald-600'; 
-    gradient = 'from-emerald-500 to-teal-500';
-  } else if (successRate > 50) { 
-    colorClass = 'text-amber-600'; 
-    gradient = 'from-amber-500 to-yellow-500';
-  }
-
   return (
     <div className="pt-24 pb-20 px-6 max-w-4xl mx-auto animate-fade-in">
       <div className="flex justify-between items-center mb-8">
@@ -680,16 +649,14 @@ const ResultView = ({ setStep, formData, aiPolishedEmail, handleEmailPolish, isA
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Score Card */}
-        <div className="md:col-span-1 bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
-           <div className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r ${gradient}`}></div>
-           <div className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">退费成功率</div>
-           <div className={`text-5xl font-black mb-2 tracking-tighter ${colorClass}`}>
-             {successRate}<span className="text-2xl">%</span>
-           </div>
-           <div className={`px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r ${gradient}`}>
-             {successRate > 80 ? '极高 Probability' : successRate > 50 ? '中等 Probability' : '极具挑战'}
-           </div>
+        <div className="md:col-span-1 bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+          <h3 className="font-bold text-gray-900 mb-3">申请前核对</h3>
+          <ul className="space-y-2 text-sm text-gray-600 leading-relaxed">
+            <li>核对扣费日期、金额和收款方。</li>
+            <li>如实说明用量，保留收据或故障记录。</li>
+            <li>查看对应付款渠道的退款条件。</li>
+          </ul>
+          <p className="mt-4 text-xs text-gray-500 leading-relaxed">退款由收款平台审核；取消续费不会自动退回已扣费用。</p>
         </div>
 
         {/* Advice Card */}
@@ -698,7 +665,7 @@ const ResultView = ({ setStep, formData, aiPolishedEmail, handleEmailPolish, isA
              <ShieldCheck size={20} />
            </div>
            <div>
-             <h3 className="font-bold text-gray-900 mb-2">专家建议</h3>
+             <h3 className="font-bold text-gray-900 mb-2">准备提示</h3>
              <p className="text-sm text-gray-700 leading-relaxed font-medium">
                {getStrategicAdvice(formData)}
              </p>
@@ -741,8 +708,8 @@ const ResultView = ({ setStep, formData, aiPolishedEmail, handleEmailPolish, isA
                       <h4 className="font-bold text-sm text-gray-900">自助通道 (Self-Service)</h4>
                       <p className="text-xs text-gray-500 mt-1 leading-relaxed">
                          {formData.platformType === 'apple' 
-                          ? <span>访问 <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium">Apple 报告问题页</a>，登录后选择 &quot;I didn&apos;t mean to buy this&quot;。</span>
-                          : <span>登录官网 {platformInfo.refundUrl && <a href={platformInfo.refundUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium">账户页 <ExternalLink size={10} className="inline"/></a>}。先尝试点 &quot;Cancel&quot;，部分平台在检测到 0 用量时会触发自动退款弹窗。</span>
+                          ? <span>访问 <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium">Apple 报告问题页</a>，登录后选择与你实际情况相符的退款原因。</span>
+                          : <span>登录官网 {platformInfo.refundUrl && <a href={platformInfo.refundUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium">官方入口 <ExternalLink size={10} className="inline"/></a>}，查看退款条件和申请方式。取消续费与申请退款需要分别处理。</span>
                         }
                       </p>
                     </div>
@@ -753,7 +720,7 @@ const ResultView = ({ setStep, formData, aiPolishedEmail, handleEmailPolish, isA
                     <div>
                       <h4 className="font-bold text-sm text-gray-900">发送申诉 (Email/Chat)</h4>
                       <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                         若自助失败，请复制右侧文案，发送至 <span className="font-mono bg-gray-100 px-1 rounded">support@{formData.platform.replace(/\s+/g, '').toLowerCase()}.com</span> 或在线客服。
+                         若自助方式无法解决，请核对右侧草稿，再通过平台官网或收据列出的客服渠道发送。
                       </p>
                     </div>
                   </div>
@@ -820,7 +787,7 @@ const App = () => {
     amount: '',
     date: '',
     paymentMethod: 'credit_card',
-    usageStatus: 'zero',
+    usageStatus: '',
     timeSinceCharge: 'within_24h',
     errorDescription: '',
     issueDetails: '',
@@ -932,10 +899,10 @@ const App = () => {
     const scenarioConfig = REFUND_SCENARIOS[formData.scenario];
     const currentDraft = scenarioConfig.defaultTemplate(formData);
     
-    const systemPrompt = `You are a professional legal correspondent specializing in consumer rights. 
+    const systemPrompt = `You help users write clear, factual customer support emails.
     Rewrite the following refund request email to be more professional, persuasive, and empathetic. 
     Use the user's raw story context if available to make it personalized.
-    Reference generic consumer protection principles (like 'service not received' or 'unintended transaction') where appropriate but keep it concise.
+    Do not invent facts, usage, refund eligibility, legal citations, or guaranteed outcomes. Preserve placeholders for unknown details.
     Return ONLY the body of the email.`;
 
     const userPrompt = `
@@ -1040,8 +1007,9 @@ const App = () => {
                 </a>
               </div>
               <p className="text-[10px] text-gray-400 max-w-xs mx-auto leading-normal mt-2">
-                © {BRAND_CONFIG.year} Ruhang365. Tool logic based on community best practices. Not legal advice.
+                © {BRAND_CONFIG.year} 入行365 · 退款结果以平台审核为准，本站内容不构成法律建议。
               </p>
+              <p className="mt-3 px-4 text-[11px] leading-relaxed text-gray-500">本站使用不含申请内容的访问统计，了解页面访问和来源；表单内容不进入流量统计。</p>
            </div>
         </div>
       </footer>
